@@ -130,6 +130,17 @@ def run_tracker():
     last_window = ""
     last_active_time = time.time()
     activity_minutes = {}  # app -> seconds
+    last_flush_time = time.time()
+    last_record_time = time.time()
+    activity_buffer = {}  # app_name -> accumulated seconds (for between-flush)
+
+    # 系统后台进程黑名单（过滤掉干扰项）
+    SYSTEM_PROCESSES = {
+        "app_model_loader", "app_mode_loader", "storeagent", "bird",
+        "cloudd", "nsurlsessiond", "trustd", "secinitd",
+        "securityd", "syspolicyd", "mobileassetd", "amfid",
+        "loginwindow", "WindowServer", "CoreBrightness",
+    }
 
     screenshot_counter = 0
     last_screenshot_time = 0
@@ -155,25 +166,56 @@ def run_tracker():
             idle_seconds = get_idle_time()
             is_idle = idle_seconds > idle_threshold
 
+            # 过滤系统后台进程 —— 跳过并复用上一个有效应用
+            if app_name in SYSTEM_PROCESSES:
+                app_name = last_app if last_app else app_name
+                window_title = last_window if last_window else window_title
+
             # 检测窗口切换
-            if app_name != last_app or window_title != last_window:
-                # 记录切换前的持续时间
-                if last_app:
-                    elapsed = now - last_active_time
-                    app_key = f"{today_str}|{last_app}"
-                    activity_minutes[app_key] = activity_minutes.get(app_key, 0) + elapsed
+            app_changed = (app_name != last_app or window_title != last_window)
 
-                    record_activity(
-                        timestamp=current_time,
-                        app_name=last_app,
-                        window_title=last_window,
-                        duration=int(elapsed),
-                        is_idle=False
-                    )
+            if app_changed and last_app:
+                # 记录切换前应用的持续时长
+                elapsed = now - last_active_time
+                app_key = f"{today_str}|{last_app}"
+                activity_minutes[app_key] = activity_minutes.get(app_key, 0) + elapsed
+                activity_buffer[last_app] = activity_buffer.get(last_app, 0) + elapsed
 
-                last_app = app_name
-                last_window = window_title
+                record_activity(
+                    timestamp=current_time,
+                    app_name=last_app,
+                    window_title=last_window,
+                    duration=int(elapsed),
+                    is_idle=False
+                )
+
                 last_active_time = now
+
+            last_app = app_name
+            last_window = window_title
+
+            # 每 60 秒强制记录一次（即使应用没切换）
+            if now - last_record_time >= 60:
+                elapsed = now - last_active_time
+                app_key = f"{today_str}|{app_name}"
+                activity_minutes[app_key] = activity_minutes.get(app_key, 0) + elapsed
+                activity_buffer[app_name] = activity_buffer.get(app_name, 0) + elapsed
+
+                record_activity(
+                    timestamp=current_time,
+                    app_name=app_name,
+                    window_title=window_title,
+                    duration=int(elapsed),
+                    is_idle=is_idle
+                )
+                last_record_time = now
+                last_active_time = now
+
+            # 每 60 秒刷新一次 app 统计数据到数据库
+            if now - last_flush_time >= 60:
+                _flush_app_stats(activity_buffer, today_str)
+                activity_buffer = {}
+                last_flush_time = now
 
             # 截图计时
             if not is_idle and (now - last_screenshot_time) >= screenshot_interval:
