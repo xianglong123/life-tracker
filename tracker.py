@@ -192,9 +192,9 @@ def run_tracker():
             if app_changed and last_app:
                 # 记录切换前应用的持续时长
                 elapsed = now - last_active_time
-                app_key = f"{today_str}|{last_app}"
-                activity_minutes[app_key] = activity_minutes.get(app_key, 0) + elapsed
-                activity_buffer[last_app] = activity_buffer.get(last_app, 0) + elapsed
+                key = f"{today_str}|{last_app}"
+                activity_minutes[key] = activity_minutes.get(key, 0) + elapsed
+                activity_buffer[key] = activity_buffer.get(key, 0) + elapsed
 
                 record_activity(
                     timestamp=current_time,
@@ -212,9 +212,9 @@ def run_tracker():
             # 每 60 秒强制记录一次（即使应用没切换）
             if now - last_record_time >= 60:
                 elapsed = now - last_active_time
-                app_key = f"{today_str}|{app_name}"
-                activity_minutes[app_key] = activity_minutes.get(app_key, 0) + elapsed
-                activity_buffer[app_name] = activity_buffer.get(app_name, 0) + elapsed
+                key = f"{today_str}|{app_name}"
+                activity_minutes[key] = activity_minutes.get(key, 0) + elapsed
+                activity_buffer[key] = activity_buffer.get(key, 0) + elapsed
 
                 record_activity(
                     timestamp=current_time,
