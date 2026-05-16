@@ -136,11 +136,16 @@ def run_tracker():
 
     # 系统后台进程黑名单（过滤掉干扰项）
     SYSTEM_PROCESSES = {
-        "app_model_loader", "app_mode_loader", "storeagent", "bird",
-        "cloudd", "nsurlsessiond", "trustd", "secinitd",
-        "securityd", "syspolicyd", "mobileassetd", "amfid",
-        "loginwindow", "WindowServer", "CoreBrightness",
+        "app_model_loader", "app_mode_loader", "appstoreagent",
+        "storeagent", "bird", "cloudd", "nsurlsessiond",
+        "trustd", "secinitd", "securityd", "syspolicyd",
+        "mobileassetd", "amfid", "loginwindow", "WindowServer",
+        "CoreBrightness",
     }
+
+    # 跳过系统进程时的备选应用
+    last_valid_app = None
+    last_valid_window = ""
 
     screenshot_counter = 0
     last_screenshot_time = 0
@@ -168,8 +173,18 @@ def run_tracker():
 
             # 过滤系统后台进程 —— 跳过并复用上一个有效应用
             if app_name in SYSTEM_PROCESSES:
-                app_name = last_app if last_app else app_name
-                window_title = last_window if last_window else window_title
+                if last_valid_app:
+                    app_name = last_valid_app
+                    window_title = last_valid_window
+                else:
+                    # 没有之前有效的应用记录，跳过这轮
+                    time.sleep(track_interval)
+                    continue
+
+            # 记录最近一次真实的应用
+            if app_name not in SYSTEM_PROCESSES:
+                last_valid_app = app_name
+                last_valid_window = window_title
 
             # 检测窗口切换
             app_changed = (app_name != last_app or window_title != last_window)
