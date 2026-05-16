@@ -68,6 +68,9 @@
             <div class="summary-meta">
                 截图记录: {{ summary.screenshots_count }} 张
             </div>
+            <form action="/api/generate_summary/{{ today }}" method="post" id="genForm2" style="margin-top:12px">
+                <button type="submit" class="btn" onclick="this.textContent='生成中...';this.disabled=true">🔄 重新生成</button>
+            </form>
             {% else %}
             <p class="empty">今日日报未生成</p>
             <form action="/api/generate_summary/{{ today }}" method="post" id="genForm" style="display:inline">
@@ -93,15 +96,17 @@
 </main>
 
 <script>
-document.getElementById('genForm')?.addEventListener('submit', async function(e) {
-    e.preventDefault();
-    const btn = this.querySelector('button');
-    btn.textContent = '生成中...';
-    btn.disabled = true;
-    const resp = await fetch(this.action, { method: 'POST' });
-    const data = await resp.json();
-    if (data.success) location.reload();
-    else { btn.textContent = '重试'; btn.disabled = false; alert(data.summary); }
+document.querySelectorAll('form[id^="genForm"]').forEach(form => {
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const btn = this.querySelector('button');
+        btn.textContent = '生成中...';
+        btn.disabled = true;
+        const resp = await fetch(this.action, { method: 'POST' });
+        const data = await resp.json();
+        if (data.success) location.reload();
+        else { btn.textContent = '重试'; btn.disabled = false; alert(data.summary); }
+    });
 });
 </script>
 </body>

@@ -66,15 +66,17 @@
 </main>
 
 <script>
-document.getElementById('genForm')?.addEventListener('submit', async function(e) {
-    e.preventDefault();
-    const btn = this.querySelector('button');
-    btn.textContent = '生成中...';
-    btn.disabled = true;
-    const resp = await fetch(this.action, { method: 'POST' });
-    const data = await resp.json();
-    if (data.success) location.reload();
-    else { btn.textContent = '重试'; btn.disabled = false; alert(data.summary); }
+document.querySelectorAll('form[id^="genForm"]').forEach(form => {
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const btn = this.querySelector('button');
+        btn.textContent = '生成中...';
+        btn.disabled = true;
+        const resp = await fetch(this.action, { method: 'POST' });
+        const data = await resp.json();
+        if (data.success) location.reload();
+        else { btn.textContent = '重试'; btn.disabled = false; alert(data.summary); }
+    });
 });
 </script>
 </body>

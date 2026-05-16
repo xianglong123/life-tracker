@@ -14,32 +14,52 @@ from database import record_activity, update_app_stats
 
 
 def get_active_window():
-    """获取 macOS 当前活跃窗口的应用名和标题（AppleScript，避免弹窗）"""
+    """获取 macOS 当前活跃窗口的应用名和标题（两步走，避免后台进程弹窗）"""
+    # 系统进程黑名单（这些 app 不查窗口标题，跳过 tell application）
+    _SYSTEM_PROCS = {
+        "app_model_loader", "app_mode_loader", "appstoreagent",
+        "storeagent", "bird", "cloudd", "nsurlsessiond",
+        "trustd", "secinitd", "securityd", "syspolicyd",
+        "mobileassetd", "amfid", "loginwindow", "WindowServer",
+        "CoreBrightness", "CoreServicesUIAgent",
+    }
+
     script = '''
     tell application "System Events"
         set frontProc to first application process whose frontmost is true
         set frontApp to name of frontProc
         set frontAppId to bundle identifier of frontProc
-        try
-            set windowTitle to name of front window of frontProc
-        on error
-            set windowTitle to ""
-        end try
     end tell
-    return frontApp & "|||" & frontAppId & "|||" & windowTitle
+    return frontApp & "|||" & frontAppId
     '''
+
     try:
         result = subprocess.run(
             ["osascript", "-e", script],
             capture_output=True, text=True, timeout=5
         )
-        if result.returncode == 0:
-            parts = result.stdout.strip().split("|||")
-            return {
-                "app_name": parts[0] if len(parts) > 0 else "Unknown",
-                "app_id": parts[1] if len(parts) > 1 else "",
-                "window_title": parts[2] if len(parts) > 2 else ""
-            }
+        if result.returncode != 0:
+            return {"app_name": "Unknown", "app_id": "", "window_title": ""}
+
+        parts = result.stdout.strip().split("|||")
+        app_name = parts[0] if len(parts) > 0 else "Unknown"
+        app_id = parts[1] if len(parts) > 1 else ""
+
+        # 只对前台用户应用获取窗口标题（避免后台进程弹窗）
+        window_title = ""
+        if app_name not in _SYSTEM_PROCS:
+            try:
+                title_result = subprocess.run(
+                    ["osascript", "-e",
+                     f'tell application "{app_name}" to get name of front window'],
+                    capture_output=True, text=True, timeout=3
+                )
+                if title_result.returncode == 0:
+                    window_title = title_result.stdout.strip()
+            except Exception:
+                pass
+
+        return {"app_name": app_name, "app_id": app_id, "window_title": window_title}
     except Exception as e:
         pass
     return {"app_name": "Unknown", "app_id": "", "window_title": ""}
