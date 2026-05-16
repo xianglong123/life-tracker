@@ -69,12 +69,12 @@
                 截图记录: {{ summary.screenshots_count }} 张
             </div>
             <form action="/api/generate_summary/{{ today }}" method="post" id="genForm2" style="margin-top:12px">
-                <button type="submit" class="btn" onclick="this.textContent='生成中...';this.disabled=true">🔄 重新生成</button>
+                <button type="submit" class="btn">🔄 重新生成</button>
             </form>
             {% else %}
             <p class="empty">今日日报未生成</p>
             <form action="/api/generate_summary/{{ today }}" method="post" id="genForm" style="display:inline">
-                <button type="submit" class="btn" onclick="this.textContent='生成中...';this.disabled=true">🔄 生成日报</button>
+                <button type="submit" class="btn">🔄 生成日报</button>
             </form>
             {% endif %}
         </div>

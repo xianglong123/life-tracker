@@ -66,7 +66,10 @@ def generate_daily_summary(today=None):
 
     # 3. 统计基础数据
     total_active_minutes = sum(s["total_minutes"] for s in stats)
-    screenshot_count = len([a for a in activities if a.get("screenshot_path")])
+    # 直接从文件系统统计截图数，比关联 activity_log 靠谱
+    from config import SCREENSHOT_DIR
+    day_dir = SCREENSHOT_DIR / today
+    screenshot_count = len(list(day_dir.glob("*.jpg"))) if day_dir.exists() else 0
 
     # 4. 整理活动时间线（精简版）
     timeline = []
