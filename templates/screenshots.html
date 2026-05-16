@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>截图浏览 - Life Tracker</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<nav class="nav">
+    <div class="nav-inner">
+        <span class="nav-title">📊 Life Tracker</span>
+        <div class="nav-links">
+            <a href="/">今日总览</a>
+            <a href="/timeline">时间轴</a>
+            <a href="/summaries">日报</a>
+            <a href="/screenshots" class="active">截图</a>
+            <a href="/config">配置</a>
+        </div>
+    </div>
+</nav>
+
+<main class="main">
+    <h1>📸 截图记录</h1>
+
+    {% if dates %}
+    <div class="date-grid">
+        {% for d in dates %}
+        <a href="/screenshots/{{ d.date }}" class="date-card">
+            <div class="dc-date">{{ d.date }}</div>
+            <div class="dc-count">{{ d.count }} 张截图</div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty">暂无截图，请先启动监控</p>
+    {% endif %}
+</main>
+</body>
+</html>

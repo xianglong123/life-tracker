@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Life Tracker</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<nav class="nav">
+    <div class="nav-inner">
+        <span class="nav-title">📊 Life Tracker</span>
+        <div class="nav-links">
+            <a href="/" class="active">今日总览</a>
+            <a href="/timeline">时间轴</a>
+            <a href="/summaries">日报</a>
+            <a href="/screenshots">截图</a>
+            <a href="/config">配置</a>
+        </div>
+    </div>
+</nav>
+
+<main class="main">
+    <h1>📅 {{ today }} 总览</h1>
+
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="stat-number">{{ total_minutes }}</div>
+            <div class="stat-label">活跃分钟</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{ app_count }}</div>
+            <div class="stat-label">使用应用</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{ total_records }}</div>
+            <div class="stat-label">活动记录</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{ screenshots|length }}</div>
+            <div class="stat-label">截图</div>
+        </div>
+    </div>
+
+    <div class="grid-2col">
+        <div class="card">
+            <h2>🏆 应用排行</h2>
+            {% if stats %}
+            <table class="table">
+                {% for s in stats %}
+                <tr>
+                    <td class="rank">{{ loop.index }}</td>
+                    <td class="app-icon">{% if '浏览器' in s.app_name or 'Chrome' in s.app_name or 'Safari' in s.app_name %}🌐{% elif 'Terminal' in s.app_name or 'iTerm' in s.app_name %}💻{% elif 'Code' in s.app_name or 'Godot' in s.app_name %}🛠️{% elif '微信' in s.app_name or 'WeChat' in s.app_name %}💬{% else %}📄{% endif %}</td>
+                    <td class="app-name">{{ s.app_name }}</td>
+                    <td class="app-time">{{ s.total_minutes }}分钟</td>
+                </tr>
+                {% endfor %}
+            </table>
+            {% else %}
+            <p class="empty">暂无数据，请先启动监控</p>
+            {% endif %}
+        </div>
+
+        <div class="card">
+            <h2>📝 今日日报</h2>
+            {% if summary %}
+            <div class="summary-text">{{ summary.summary.replace('\n', '<br>') | safe }}</div>
+            <div class="summary-meta">
+                截图记录: {{ summary.screenshots_count }} 张
+            </div>
+            {% else %}
+            <p class="empty">今日日报未生成</p>
+            <form action="/api/generate_summary/{{ today }}" method="post" id="genForm" style="display:inline">
+                <button type="submit" class="btn" onclick="this.textContent='生成中...';this.disabled=true">🔄 生成日报</button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if screenshots %}
+    <div class="card">
+        <h2>📸 今日截图快照</h2>
+        <div class="screenshot-strip">
+            {% for s in screenshots %}
+            <a href="/screenshot/{{ s.path }}" target="_blank" class="screenshot-thumb">
+                <img src="/screenshot/{{ s.path }}" alt="{{ s.name }}" loading="lazy">
+                <span class="screenshot-time">{{ s.name[:5] }}</span>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</main>
+
+<script>
+document.getElementById('genForm')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const btn = this.querySelector('button');
+    btn.textContent = '生成中...';
+    btn.disabled = true;
+    const resp = await fetch(this.action, { method: 'POST' });
+    const data = await resp.json();
+    if (data.success) location.reload();
+    else { btn.textContent = '重试'; btn.disabled = false; alert(data.summary); }
+});
+</script>
+</body>
+</html>

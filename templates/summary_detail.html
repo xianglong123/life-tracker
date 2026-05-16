@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ date }} 日报详情 - Life Tracker</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<nav class="nav">
+    <div class="nav-inner">
+        <span class="nav-title">📊 Life Tracker</span>
+        <div class="nav-links">
+            <a href="/">今日总览</a>
+            <a href="/timeline?date={{ date }}">时间轴</a>
+            <a href="/summaries" class="active">日报</a>
+            <a href="/screenshots">截图</a>
+            <a href="/config">配置</a>
+        </div>
+    </div>
+</nav>
+
+<main class="main">
+    <h1>📝 {{ date }} 日报</h1>
+
+    {% if summary %}
+    <div class="card">
+        <div class="summary-text-full">{{ summary.summary.replace('\n', '<br>') | safe }}</div>
+    </div>
+    {% else %}
+    <p class="empty">该天没有日报</p>
+    <form action="/api/generate_summary/{{ date }}" method="post" id="genForm">
+        <button type="submit" class="btn">🔄 生成日报</button>
+    </form>
+    {% endif %}
+
+    <div class="grid-2col">
+        <div class="card">
+            <h2>📊 应用统计</h2>
+            {% if stats %}
+            <table class="table">
+                {% for s in stats %}
+                <tr>
+                    <td class="rank">{{ loop.index }}</td>
+                    <td class="app-name">{{ s.app_name }}</td>
+                    <td class="app-time">{{ s.total_minutes }}分钟</td>
+                </tr>
+                {% endfor %}
+            </table>
+            {% else %}
+            <p class="empty">无数据</p>
+            {% endif %}
+        </div>
+
+        <div class="card">
+            <h2>📸 截图 ({{ screenshots|length }})</h2>
+            <div class="screenshot-strip">
+                {% for s in screenshots %}
+                <a href="/screenshot/{{ s.path }}" target="_blank" class="screenshot-thumb">
+                    <img src="/screenshot/{{ s.path }}" alt="{{ s.name }}" loading="lazy">
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</main>
+
+<script>
+document.getElementById('genForm')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const btn = this.querySelector('button');
+    btn.textContent = '生成中...';
+    btn.disabled = true;
+    const resp = await fetch(this.action, { method: 'POST' });
+    const data = await resp.json();
+    if (data.success) location.reload();
+    else { btn.textContent = '重试'; btn.disabled = false; alert(data.summary); }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,229 @@
+"""
+Life Tracker — macOS 活动监控器
+追踪：当前应用、窗口标题、闲置时间 + 周期截图
+"""
+import subprocess
+import time
+import os
+import shutil
+from datetime import datetime, date
+from pathlib import Path
+
+from config import load_config, DATA_DIR
+from database import record_activity, update_app_stats
+
+
+def get_active_window():
+    """获取 macOS 当前活跃窗口的应用名和标题（AppleScript，避免弹窗）"""
+    script = '''
+    tell application "System Events"
+        set frontProc to first application process whose frontmost is true
+        set frontApp to name of frontProc
+        set frontAppId to bundle identifier of frontProc
+        try
+            set windowTitle to name of front window of frontProc
+        on error
+            set windowTitle to ""
+        end try
+    end tell
+    return frontApp & "|||" & frontAppId & "|||" & windowTitle
+    '''
+    try:
+        result = subprocess.run(
+            ["osascript", "-e", script],
+            capture_output=True, text=True, timeout=5
+        )
+        if result.returncode == 0:
+            parts = result.stdout.strip().split("|||")
+            return {
+                "app_name": parts[0] if len(parts) > 0 else "Unknown",
+                "app_id": parts[1] if len(parts) > 1 else "",
+                "window_title": parts[2] if len(parts) > 2 else ""
+            }
+    except Exception as e:
+        pass
+    return {"app_name": "Unknown", "app_id": "", "window_title": ""}
+
+
+def get_idle_time():
+    """获取闲置时间（秒）"""
+    try:
+        result = subprocess.run(
+            ["ioreg", "-c", "IOHIDSystem", "-r", "-d", "1"],
+            capture_output=True, text=True, timeout=5
+        )
+        for line in result.stdout.split("\n"):
+            if "HIDIdleTime" in line:
+                try:
+                    # 值是以纳秒为单位的
+                    ns = int(line.split("=")[-1].strip())
+                    return int(ns / 1_000_000_000)
+                except:
+                    return 0
+    except:
+        pass
+    return 0
+
+
+def take_screenshot(output_path):
+    """截屏（静音模式）"""
+    try:
+        output_path = str(output_path)
+        subprocess.run(
+            ["screencapture", "-x", "-t", "jpg", output_path],
+            capture_output=True, timeout=10
+        )
+        return os.path.exists(output_path) and os.path.getsize(output_path) > 0
+    except Exception as e:
+        print(f"[截图失败] {e}")
+        return False
+
+
+def compress_jpeg(path, quality=60):
+    """用 sips 压缩 JPEG（macOS 内置工具）"""
+    try:
+        subprocess.run(
+            ["sips", "-s", "format", "jpeg", "-s", "formatOptions", str(quality),
+             str(path), "--out", str(path)],
+            capture_output=True, timeout=10
+        )
+    except:
+        pass
+
+
+def clean_old_screenshots(retention_days=30):
+    """清理过期截图"""
+    screenshot_dir = DATA_DIR / "screenshots"
+    if not screenshot_dir.exists():
+        return
+    from datetime import timedelta
+    cutoff = date.today() - timedelta(days=retention_days)
+    for day_dir in screenshot_dir.iterdir():
+        if day_dir.is_dir():
+            try:
+                dir_date = datetime.strptime(day_dir.name, "%Y-%m-%d").date()
+                if dir_date < cutoff:
+                    shutil.rmtree(day_dir)
+                    print(f"[清理] 删除过期截图目录: {day_dir.name}")
+            except:
+                pass
+
+
+def run_tracker():
+    """主监控循环"""
+    config = load_config()
+    track_interval = config.get("track_interval", 5)
+    screenshot_interval = config.get("screenshot_interval", 300)
+    quality = config.get("screenshot_quality", 60)
+    retention = config.get("screenshot_retention_days", 30)
+    idle_threshold = config.get("idle_threshold", 120)
+
+    print("=" * 50)
+    print("📊 Life Tracker 已启动")
+    print(f"   监控间隔: {track_interval}秒")
+    print(f"   截图间隔: {screenshot_interval}秒")
+    print(f"   截图质量: {quality}%")
+    print(f"   闲置阈值: {idle_threshold}秒")
+    print("=" * 50)
+
+    last_app = ""
+    last_window = ""
+    last_active_time = time.time()
+    activity_minutes = {}  # app -> seconds
+
+    screenshot_counter = 0
+    last_screenshot_time = 0
+    today_str = date.today().isoformat()
+
+    while True:
+        try:
+            now = time.time()
+            current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            today_str_new = date.today().isoformat()
+
+            # 跨天处理
+            if today_str_new != today_str:
+                _flush_app_stats(activity_minutes, today_str)
+                activity_minutes = {}
+                today_str = today_str_new
+                clean_old_screenshots(retention)
+
+            # 获取当前活跃窗口
+            win = get_active_window()
+            app_name = win.get("app_name", "Unknown")
+            window_title = win.get("window_title", "")
+            idle_seconds = get_idle_time()
+            is_idle = idle_seconds > idle_threshold
+
+            # 检测窗口切换
+            if app_name != last_app or window_title != last_window:
+                # 记录切换前的持续时间
+                if last_app:
+                    elapsed = now - last_active_time
+                    app_key = f"{today_str}|{last_app}"
+                    activity_minutes[app_key] = activity_minutes.get(app_key, 0) + elapsed
+
+                    record_activity(
+                        timestamp=current_time,
+                        app_name=last_app,
+                        window_title=last_window,
+                        duration=int(elapsed),
+                        is_idle=False
+                    )
+
+                last_app = app_name
+                last_window = window_title
+                last_active_time = now
+
+            # 截图计时
+            if not is_idle and (now - last_screenshot_time) >= screenshot_interval:
+                _do_screenshot(current_time, quality)
+                last_screenshot_time = now
+                screenshot_counter += 1
+
+            time.sleep(track_interval)
+
+        except KeyboardInterrupt:
+            print("\n⏹  Life Tracker 已停止")
+            _flush_app_stats(activity_minutes, today_str)
+            break
+        except Exception as e:
+            print(f"[错误] {e}")
+            time.sleep(track_interval)
+
+
+def _do_screenshot(timestamp, quality):
+    """执行一次截图"""
+    try:
+        today = date.today()
+        day_dir = DATA_DIR / "screenshots" / today.isoformat()
+        day_dir.mkdir(parents=True, exist_ok=True)
+
+        time_str = timestamp.replace(":", "-").replace(" ", "_")
+        filename = f"{time_str}.jpg"
+        filepath = day_dir / filename
+
+        if take_screenshot(filepath):
+            compress_jpeg(filepath, quality)
+            size_kb = os.path.getsize(filepath) / 1024
+            print(f"[截图] {timestamp} ({size_kb:.0f}KB)")
+            from database import save_screenshot_path
+            save_screenshot_path(timestamp, str(filepath))
+            return str(filepath)
+    except Exception as e:
+        print(f"[截图失败] {e}")
+    return None
+
+
+def _flush_app_stats(activity_minutes, today_str):
+    """将缓存的app时长写入数据库"""
+    from database import update_app_stats
+    for key, seconds in activity_minutes.items():
+        parts = key.split("|")
+        if len(parts) == 2 and parts[0] == today_str:
+            minutes = max(1, int(seconds / 60))
+            update_app_stats(today_str, parts[1], minutes)
+
+
+if __name__ == "__main__":
+    run_tracker()

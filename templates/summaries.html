@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>日报 - Life Tracker</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<nav class="nav">
+    <div class="nav-inner">
+        <span class="nav-title">📊 Life Tracker</span>
+        <div class="nav-links">
+            <a href="/">今日总览</a>
+            <a href="/timeline">时间轴</a>
+            <a href="/summaries" class="active">日报</a>
+            <a href="/screenshots">截图</a>
+            <a href="/config">配置</a>
+        </div>
+    </div>
+</nav>
+
+<main class="main">
+    <h1>📝 日报列表</h1>
+
+    {% if summaries %}
+    <div class="summary-list">
+        {% for s in summaries %}
+        <a href="/summary/{{ s.date }}" class="summary-card">
+            <div class="sc-date">{{ s.date }}</div>
+            <div class="sc-stats">
+                <span>⏱ {{ s.total_active_minutes }}分钟</span>
+                <span>📸 {{ s.screenshots_count }}张</span>
+            </div>
+            <div class="sc-time">{{ s.created_at }}</div>
+        </a>
+        {% endfor %}
+    </div>
+
+    <div class="pagination">
+        {% if page > 1 %}
+        <a href="/summaries?page={{ page - 1 }}" class="btn">← 上一页</a>
+        {% endif %}
+        <span>第 {{ page }} / {{ total_pages }} 页</span>
+        {% if page < total_pages %}
+        <a href="/summaries?page={{ page + 1 }}" class="btn">下一页 →</a>
+        {% endif %}
+    </div>
+    {% else %}
+    <p class="empty">暂无日报，请先运行监控</p>
+    {% endif %}
+</main>
+</body>
+</html>

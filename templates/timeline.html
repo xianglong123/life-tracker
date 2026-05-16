@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>时间轴 - Life Tracker</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<nav class="nav">
+    <div class="nav-inner">
+        <span class="nav-title">📊 Life Tracker</span>
+        <div class="nav-links">
+            <a href="/">今日总览</a>
+            <a href="/timeline" class="active">时间轴</a>
+            <a href="/summaries">日报</a>
+            <a href="/screenshots">截图</a>
+            <a href="/config">配置</a>
+        </div>
+    </div>
+</nav>
+
+<main class="main">
+    <div class="date-nav">
+        <a href="/timeline?date={{ prev_date }}" class="btn">← 前一天</a>
+        <h1>📅 {{ date }}</h1>
+        {% if is_today %}<span class="badge">今天</span>{% endif %}
+        <a href="/timeline?date={{ next_date }}" class="btn">后一天 →</a>
+    </div>
+
+    <div class="timeline">
+        {% if timeline %}
+        {% set last_app = namespace(app='') %}
+        {% for t in timeline %}
+        <div class="tl-item {% if t.app != last_app.app %}tl-switch{% endif %}">
+            {% set last_app.app = t.app %}
+            <div class="tl-time">{{ t.time }}</div>
+            <div class="tl-dot"></div>
+            <div class="tl-content">
+                <span class="tl-app">{{ t.app }}</span>
+                {% if t.title %}
+                <span class="tl-title">{{ t.title[:50] }}</span>
+                {% endif %}
+                {% if t.duration > 60 %}
+                <span class="tl-duration">{{ (t.duration / 60)|int }}分</span>
+                {% endif %}
+                {% if t.screenshot %}
+                <a href="/screenshot/{{ t.screenshot.split('/screenshots/')[-1] }}" target="_blank" class="tl-cam">📸</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <p class="empty">该天没有活动记录</p>
+        {% endif %}
+    </div>
+</main>
+</body>
+</html>

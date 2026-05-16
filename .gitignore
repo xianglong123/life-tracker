@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+venv/
+
+# Life Tracker data
+data/*.db
+data/config.json
+
+# Screenshots are tracked via git-lfs or not at all
+data/screenshots/
+
+# macOS
+.DS_Store

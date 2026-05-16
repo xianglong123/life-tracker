@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>配置 - Life Tracker</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<nav class="nav">
+    <div class="nav-inner">
+        <span class="nav-title">📊 Life Tracker</span>
+        <div class="nav-links">
+            <a href="/">今日总览</a>
+            <a href="/timeline">时间轴</a>
+            <a href="/summaries">日报</a>
+            <a href="/screenshots">截图</a>
+            <a href="/config" class="active">配置</a>
+        </div>
+    </div>
+</nav>
+
+<main class="main">
+    <h1>⚙️ 配置</h1>
+
+    {% if saved %}
+    <div class="alert alert-success">✅ 配置已保存</div>
+    {% endif %}
+
+    <form method="post" class="config-form">
+        <div class="card">
+            <h3>⏱️ 监控设置</h3>
+            <div class="form-row">
+                <label>监控轮询间隔（秒）</label>
+                <input type="number" name="track_interval" value="{{ config.track_interval }}" min="1" max="60">
+            </div>
+            <div class="form-row">
+                <label>闲置判定阈值（秒）</label>
+                <input type="number" name="idle_threshold" value="{{ config.idle_threshold }}" min="10" max="600">
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>📸 截图设置</h3>
+            <div class="form-row">
+                <label>截图间隔（秒）</label>
+                <input type="number" name="screenshot_interval" value="{{ config.screenshot_interval }}" min="30" max="3600">
+                <small>建议300秒（5分钟）</small>
+            </div>
+            <div class="form-row">
+                <label>JPEG压缩质量 (1-100)</label>
+                <input type="number" name="screenshot_quality" value="{{ config.screenshot_quality }}" min="10" max="100">
+                <small>数值越小文件越小，60推荐</small>
+            </div>
+            <div class="form-row">
+                <label>截图保留天数</label>
+                <input type="number" name="screenshot_retention_days" value="{{ config.screenshot_retention_days }}" min="1" max="365">
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>🌐 Web后台</h3>
+            <div class="form-row">
+                <label>端口</label>
+                <input type="number" name="dashboard_port" value="{{ config.dashboard_port }}" min="1024" max="65535">
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary">💾 保存配置</button>
+    </form>
+</main>
+</body>
+</html>

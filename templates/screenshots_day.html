@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ date }} 截图 - Life Tracker</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<nav class="nav">
+    <div class="nav-inner">
+        <span class="nav-title">📊 Life Tracker</span>
+        <div class="nav-links">
+            <a href="/">今日总览</a>
+            <a href="/timeline?date={{ date }}">时间轴</a>
+            <a href="/summaries">日报</a>
+            <a href="/screenshots" class="active">截图</a>
+            <a href="/config">配置</a>
+        </div>
+    </div>
+</nav>
+
+<main class="main">
+    <h1>📸 {{ date }} 截图 ({{ screenshots|length }}张)</h1>
+
+    <div class="screenshot-grid">
+        {% for s in screenshots %}
+        <a href="/screenshot/{{ s.path }}" target="_blank" class="screenshot-card">
+            <img src="/screenshot/{{ s.path }}" alt="{{ s.name }}" loading="lazy">
+            <div class="sc-overlay">
+                <span>{{ s.name[:5] }}:{{ s.name[5:7] }}</span>
+                <span>{{ s.size }}</span>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+</main>
+</body>
+</html>
